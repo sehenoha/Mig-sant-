@@ -90,13 +90,11 @@ def enregistrer_micro(nom_fichier, frequence=FREQUENCE):
 while True:
 
     #Speech to text victime
-    enregistrer_micro("victime.wav")
-    with open("victime.wav", "rb") as audio:
-        stt_victime = client.audio.transcriptions.complete(
-            model="voxtral-mini-latest",
-            file={"content": audio, "file_name": "victime.wav"},
-        )
-    print("Victime :", stt_victime.text)
+    texte_victime_src, langue_detectee = enregistrer_micro("victime.wav")
+    if not texte_victime_src:
+        print("(rien entendu, on recommence)")
+        continue
+    print("Victime :", texte_victime_src)
 
     #Traduction LLM
 
@@ -104,7 +102,7 @@ while True:
         model="mistral-small-latest",
         messages=[
             {"role": "system", "content": "Tu es un traducteur. Traduis en français sans commentaire."},
-            {"role": "user", "content": stt_victime.text}
+            {"role": "user", "content": texte_victime_src}
         ]
     )
     texte_fr = trad_fr.choices[0].message.content
@@ -124,17 +122,13 @@ while True:
     opener = "open" if sys.platform == "darwin" else "xdg-open"
     subprocess.call([opener, "pour_med.mp3"])
     
-    #Speech to text med
+    #Speech to text med (en direct)
 
-    enregistrer_micro("med.wav")
-
-    with open("med.wav", "rb") as audio:
-        stt_med = client.audio.transcriptions.complete(
-            model="voxtral-mini-latest",
-            file={"content": audio, "file_name": "moi.wav"},
-            language="fr"
-        )
-    print("Médecin :", stt_med.text)
+    texte_med, _ = enregistrer_micro("med.wav")
+    if not texte_med:
+        print("(rien entendu, on recommence)")
+        continue
+    print("Médecin :", texte_med)
 
     #Traduction LLM
 
@@ -142,14 +136,14 @@ while True:
         model="mistral-small-latest",
         messages=[
             {"role": "system", "content": "Réponds uniquement par le code de la langue du texte (ex: en, fr, de, ). Un seul mot, sans ponctuation."},
-            {"role": "user", "content": stt_victime.text}
+            {"role": "user", "content": texte_victime_src}
         ]
     )
     langue_victime = detect_langue.choices[0].message.content.strip()
     trad_pour_inconnu = client.chat.complete(
         model="mistral-small-latest",
         messages=[
-            {"role": "user", "content": stt_med.text},{
+            {"role": "user", "content": texte_med},{
                 "role": "system",
                 "content": f"Tu es un traducteur. Traduis le texte de l'utilisateur en la langue dont le code est {langue_victime}. Ne renvoie que la traduction, sans commentaire."
             },
