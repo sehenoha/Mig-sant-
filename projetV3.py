@@ -86,6 +86,14 @@ def enregistrer_micro(nom_fichier, frequence=FREQUENCE):
     return asyncio.run(_ecouter_en_direct(nom_fichier, frequence))
 
 
+def jouer(fichier):
+    # afplay est bloquant : le micro ne capte pas la synthèse vocale
+    if sys.platform == "darwin":
+        subprocess.call(["afplay", fichier])
+    else:
+        subprocess.call(["xdg-open", fichier])
+
+
 
 while True:
 
@@ -119,9 +127,8 @@ while True:
     )
     with open("pour_med.mp3", "wb") as f:
         f.write(base64.b64decode(audio_fr.audio_data))
-    opener = "open" if sys.platform == "darwin" else "xdg-open"
-    subprocess.call([opener, "pour_med.mp3"])
-    
+    jouer("pour_med.mp3")
+
     #Speech to text med (en direct)
 
     texte_med, _ = enregistrer_micro("med.wav")
@@ -174,9 +181,7 @@ while True:
     
     with open("pour_victime.mp3", "wb") as f:
         f.write(base64.b64decode(audio_etranger.audio_data))
-    
-    opener = "open" if sys.platform == "darwin" else "xdg-open"
-    subprocess.call([opener, "pour_victime.mp3"])
+    jouer("pour_victime.mp3")
 
 
 
