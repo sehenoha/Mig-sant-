@@ -147,6 +147,11 @@ while True:
         ]
     )
     langue_victime = detect_langue.choices[0].message.content.strip()
+    # À REVOIR : le message "system" (consignes de traduction) est placé après
+    # le message "user". Les consignes devraient venir en premier pour être
+    # appliquées de façon fiable ; sinon le modèle peut répondre au texte au lieu
+    # de le traduire, ou ajouter des commentaires. La traduction victime -> médecin
+    # plus haut utilise déjà le bon ordre (system puis user).
     trad_pour_inconnu = client.chat.complete(
         model="mistral-small-latest",
         messages=[
