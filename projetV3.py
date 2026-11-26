@@ -154,20 +154,15 @@ while True:
 
     #Text to speech med
 
-    audio_etranger = client.audio.speech.complete(
-        model="voxtral-mini-tts-3",
-        input=texte_victime,
-        voice_id="voice_3150",
-        response_format="mp3",
-        stream=False,
-    )
+    # Voix adaptée à la langue de la victime (voice_3150 par défaut)
+    id_v = "voice_3150"
+    try:
+        page = client.audio.voices.search(language=[langue_victime])
+        if page.result.data:
+            id_v = page.result.data[0].id
+    except Exception as e:
+        print("Recherche de voix impossible :", e)
 
-    # Filter by language and gender
-    page = client.audio.voices.search(
-        language=[langue_victime],
-        )
-    id_v=(page.result.data[0]).id
-    
     audio_etranger = client.audio.speech.complete(
         model="voxtral-mini-tts-3",
         input=texte_victime,
