@@ -1,5 +1,6 @@
 #$env:SSL_CERT_FILE = ""
 
+import keyboard
 import os
 import base64
 import numpy as np
@@ -18,44 +19,53 @@ import asyncio
 import wave
 
 client = Mistral(api_key="mstrl_CGZ1BzrDG2cnmZsNyh5937Hvxikgn8IA_2ABWBD")
+SAMPLE_RATE = 16000
+CHUNK_MS = 100
 
-def enregistrer_micro(nom_fichier, frequence=16000):
-    input()
+async def mic_chunks():
+    loop = asyncio.get_running_loop()
+    queue: asyncio.Queue[bytes] = asyncio.Queue()
+
+    def callback(indata, frames, time_info, status):
+        loop.call_soon_threadsafe(queue.put_nowait, indata.tobytes())
+
+    with sd.InputStream(
+        samplerate=SAMPLE_RATE,
+        channels=1,
+        dtype="int16",
+        blocksize=int(SAMPLE_RATE * CHUNK_MS / 1000),
+        callback=callback,
+    ):
+        while not keyboard.is_pressed("esc"):
+            yield await queue.get()
+
+async def main():
+    input("Appuyez sur Entrée pour parler")
+    texte_final = "" 
     
-    audio_data = []
-    def callback(indata, frames, time, status):
-        audio_data.append(indata.copy())
-        async def main():
-            async for event in client.audio.realtime.transcribe_stream(
-            indata,
-            model="voxtral-mini-transcribe-realtime-3",):
-                if isinstance(event, TranscriptionStreamTextDelta):
-                    print(event.text, end="", flush=True)
-                elif isinstance(event, TranscriptionStreamDone):
-                    print(f"\n\nFinal transcript: {event.text}")
-                elif isinstance(event, RealtimeTranscriptionError):
-                    print(f"\nError: {event.error.message}")
+    async for event in client.audio.realtime.transcribe_stream(
+        mic_chunks(),
+        model="voxtral-mini-transcribe-realtime-3",
+        audio_format=AudioFormat(encoding="pcm_s16le", sample_rate=SAMPLE_RATE),
+    ):
+            if isinstance(event, TranscriptionStreamTextDelta):
+                print(event.text, end="", flush=True)
+                texte_final += event.text
+            elif isinstance(event, TranscriptionStreamDone):
+                print(f"\n\nFinal transcript: {event.text}")
+            elif isinstance(event, RealtimeTranscriptionError):
+                print(f"\nError: {event.error.message}")
 
-        asyncio.run(main())
-
-    with sd.InputStream(samplerate=frequence, channels=1, callback=callback):
-        input() 
-
-    audio_complet = np.concatenate(audio_data, axis=0)
-    write(nom_fichier, frequence, audio_complet)
+def enregistrement(qui_parle) :
+    asyncio.run(main()
+return texte_final
 
 
-
-while True:
+while True :
 
     #Speech to text victime
-    enregistrer_micro("victime.wav")
-    with open("victime.wav", "rb") as audio:
-        stt_victime = client.audio.transcriptions.complete(
-            model="voxtral-mini-latest",
-            file={"content": audio, "file_name": "victime.wav"},
-        )
-    print("Victime :", stt_victime.text)
+
+    enregistrement("victime")
 
     #Traduction LLM
 
@@ -63,7 +73,7 @@ while True:
         model="mistral-small-latest",
         messages=[
             {"role": "system", "content": "Tu es un traducteur. Traduis en français sans commentaire."},
-            {"role": "user", "content": stt_victime.text}
+            {"role": "user", "content": texte_final.text}
         ]
     )
     texte_fr = trad_fr.choices[0].message.content
@@ -85,13 +95,7 @@ while True:
     
     #Speech to text med
 
-    enregistrer_micro("med.wav")
-
-    with open("med.wav", "rb") as audio:
-        stt_med = client.audio.transcriptions.complete(
-            model="voxtral-mini-latest",
-            file={"content": audio, "file_name": "moi.wav"},
-            language="fr"
+    enregistrement("medecin")
         )
     print("Médecin :", stt_med.text)
 
@@ -108,10 +112,8 @@ while True:
     trad_pour_inconnu = client.chat.complete(
         model="mistral-small-latest",
         messages=[
-            {"role": "user", "content": stt_med.text},{
-                "role": "system",
-                "content": f"Tu es un traducteur. Traduis le texte de l'utilisateur en la langue dont le code est {langue_victime}. Ne renvoie que la traduction, sans commentaire."
-            },
+            {"role": "user", "content": stt_med.text},
+            {"role": "system","content": f"Tu es un traducteur. Traduis le texte de l'utilisateur en la langue dont le code est {langue_victime}. Ne renvoie que la traduction, sans commentaire."}
         ]
     )
     texte_victime = trad_pour_inconnu.choices[0].message.content

@@ -39,7 +39,7 @@ async def mic_chunks():
         while not keyboard.is_pressed("esc"):
             yield await queue.get()
 
-async def main():
+async def main(qui_parle):
     input("Appuyez sur Entrée pour parler")
     texte_final = "" 
     
@@ -49,10 +49,8 @@ async def main():
         audio_format=AudioFormat(encoding="pcm_s16le", sample_rate=SAMPLE_RATE),
     ):
             if isinstance(event, TranscriptionStreamTextDelta):
-                print(event.text, end="", flush=True)
+                print(f"{qui_parle} : {event.text}", end="", flush=True)
                 texte_final += event.text
-            elif isinstance(event, TranscriptionStreamDone):
-                print(f"\n\nFinal transcript: {event.text}")
             elif isinstance(event, RealtimeTranscriptionError):
                 print(f"\nError: {event.error.message}")
     return texte_final
