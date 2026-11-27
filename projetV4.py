@@ -55,17 +55,17 @@ async def main():
                 print(f"\n\nFinal transcript: {event.text}")
             elif isinstance(event, RealtimeTranscriptionError):
                 print(f"\nError: {event.error.message}")
+    return texte_final
 
 def enregistrement(qui_parle) :
-    asyncio.run(main()
-return texte_final
+    return asyncio.run(main())
 
 
 while True :
 
     #Speech to text victime
 
-    enregistrement("victime")
+    text_victime_original = enregistrement("victime")
 
     #Traduction LLM
 
@@ -73,7 +73,7 @@ while True :
         model="mistral-small-latest",
         messages=[
             {"role": "system", "content": "Tu es un traducteur. Traduis en français sans commentaire."},
-            {"role": "user", "content": texte_final.text}
+            {"role": "user", "content": text_victime_original}
         ]
     )
     texte_fr = trad_fr.choices[0].message.content
@@ -90,14 +90,11 @@ while True :
     )
     with open("pour_med.mp3", "wb") as f:
         f.write(base64.b64decode(audio_fr.audio_data))
-    opener = "open" if sys.platform == "darwin" else "xdg-open"
-    subprocess.call([opener, "pour_med.mp3"])
+    os.startfile("pour_med.mp3")
     
     #Speech to text med
 
-    enregistrement("medecin")
-        )
-    print("Médecin :", stt_med.text)
+    text_med = enregistrement("medecin")
 
     #Traduction LLM
 
@@ -105,14 +102,14 @@ while True :
         model="mistral-small-latest",
         messages=[
             {"role": "system", "content": "Réponds uniquement par le code de la langue du texte (ex: en, fr, de, ). Un seul mot, sans ponctuation."},
-            {"role": "user", "content": stt_victime.text}
+            {"role": "user", "content": text_med}
         ]
     )
     langue_victime = detect_langue.choices[0].message.content.strip()
     trad_pour_inconnu = client.chat.complete(
         model="mistral-small-latest",
         messages=[
-            {"role": "user", "content": stt_med.text},
+            {"role": "user", "content": text_med},
             {"role": "system","content": f"Tu es un traducteur. Traduis le texte de l'utilisateur en la langue dont le code est {langue_victime}. Ne renvoie que la traduction, sans commentaire."}
         ]
     )
@@ -146,9 +143,7 @@ while True :
     
     with open("pour_victime.mp3", "wb") as f:
         f.write(base64.b64decode(audio_etranger.audio_data))
-    
-    opener = "open" if sys.platform == "darwin" else "xdg-open"
-    subprocess.call([opener, "pour_victime.mp3"])
+    os.startfile("pour_victime.mp3")
 
 
 
